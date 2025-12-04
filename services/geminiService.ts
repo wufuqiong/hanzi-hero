@@ -33,13 +33,14 @@ async function decodeAudioData(
 
 export const fetchCharacterDetails = async (character: string): Promise<CharacterDetailResponse> => {
   try {
-    // 1. Fetch Text Details (Pinyin + Chinese Sentence)
+    // 1. Fetch Text Details (Pinyin + Chinese Sentence + Phrases)
     const textPromise = ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: `For the Chinese character "${character}", provide:
       1. Pinyin with tone marks.
       2. A simple, short Chinese sentence using the character suitable for a 5-year-old child.
-      IMPORTANT: The sentence must be in Chinese ONLY. Do NOT include English translations.`,
+      3. Two common Chinese words/phrases (词语) containing this character.
+      IMPORTANT: Everything must be in Chinese ONLY (except Pinyin). Do NOT include English translations.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -47,8 +48,13 @@ export const fetchCharacterDetails = async (character: string): Promise<Characte
           properties: {
             pinyin: { type: Type.STRING, description: "Pinyin with tone marks" },
             sentence: { type: Type.STRING, description: "A simple Chinese sentence using the character." },
+            phrases: { 
+              type: Type.ARRAY, 
+              items: { type: Type.STRING },
+              description: "List of 2 common Chinese words containing the character." 
+            }
           },
-          required: ["pinyin", "sentence"],
+          required: ["pinyin", "sentence", "phrases"],
         },
       },
     });
@@ -59,6 +65,7 @@ export const fetchCharacterDetails = async (character: string): Promise<Characte
     return {
       pinyin: textData.pinyin || "...",
       sentence: textData.sentence || "...",
+      phrases: textData.phrases || [],
     };
 
   } catch (error) {
@@ -67,6 +74,7 @@ export const fetchCharacterDetails = async (character: string): Promise<Characte
     return {
       pinyin: "...",
       sentence: "...",
+      phrases: [],
     };
   }
 };
