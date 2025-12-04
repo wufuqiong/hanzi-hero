@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { LEVELS, INITIAL_CACHE } from './constants';
 import { AppMode, CharacterDetailResponse, LevelData } from './types';
-import { fetchCharacterDetails, fetchSpeech, playAudioBuffer } from './services/geminiService';
+import { fetchCharacterDetails, fetchSpeech, playAudioBuffer } from './services/Service';
 import { FlashCard } from './components/FlashCard';
 import { QuizGame } from './components/QuizGame';
 
