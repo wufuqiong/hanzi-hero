@@ -1,123 +1,98 @@
 import { CharacterDetailResponse } from "../types";
+import { characterDatabase } from "../data/characterDatabase";
 
-// Local database for character details
-const characterDatabase: Record<string, CharacterDetailResponse> = {
-  "我": {
-    pinyin: "wǒ",
-    sentence: "我喜欢苹果。"
-  },
-  "你": {
-    pinyin: "nǐ",
-    sentence: "你好吗？"
-  },
-  "他": {
-    pinyin: "tā", 
-    sentence: "他是我的爸爸。"
-  },
-  "她": {
-    pinyin: "tā",
-    sentence: "她是我的妈妈。"
-  },
-  "好": {
-    pinyin: "hǎo",
-    sentence: "今天天气很好。"
-  },
-  "爱": {
-    pinyin: "ài",
-    sentence: "我爱我的家人。"
-  },
-  "家": {
-    pinyin: "jiā",
-    sentence: "这是我的家。"
-  },
-  "学": {
-    pinyin: "xué",
-    sentence: "我喜欢学习中文。"
-  },
-  "猫": {
-    pinyin: "māo",
-    sentence: "小猫很可爱。"
-  },
-  "狗": {
-    pinyin: "gǒu",
-    sentence: "小狗在跑步。"
-  }
-};
-
-// Fallback data for unknown characters
-const getFallbackData = (character: string): CharacterDetailResponse => ({
-  pinyin: "pīnyīn",
-  sentence: `${character}是一个汉字。`
-});
+// Fallback data generator for unknown characters
+function generateFallbackData(character: string): CharacterDetailResponse {
+  const commonPinyin = ["nǐ", "wǒ", "tā", "hǎo", "ài", "xué", "jiā", "shuǐ"];
+  const randomPinyin = commonPinyin[Math.floor(Math.random() * commonPinyin.length)];
+  
+  return {
+    pinyin: randomPinyin,
+    sentence: `这是一个关于${character}的句子。`,
+    phrases: [`${character}字`, `用${character}`]
+  };
+}
 
 export const fetchCharacterDetails = async (character: string): Promise<CharacterDetailResponse> => {
   try {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
     // Check if we have data for this character
     if (characterDatabase[character]) {
       return characterDatabase[character];
     }
     
-    // Return fallback data for unknown characters
-    return getFallbackData(character);
+    // Generate fallback data for unknown characters
+    return generateFallbackData(character);
     
   } catch (error) {
     console.error("Error fetching character details:", error);
-    return getFallbackData(character);
+    return {
+      pinyin: "...",
+      sentence: "...",
+      phrases: [],
+    };
   }
 };
 
+// Text-to-Speech using Web Speech API
 export const fetchSpeech = async (text: string): Promise<AudioBuffer | null> => {
   try {
-    // Use browser's Web Speech API for TTS
-    if (!('speechSynthesis' in window)) {
-      console.warn("Speech synthesis not supported in this browser");
+    // Check if browser supports Web Speech API
+    if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
+      console.warn("Web Speech API not supported in this browser");
       return null;
     }
 
     return new Promise((resolve) => {
-      // Create a simple silent audio buffer as placeholder
-      // In a real implementation, you might want to use a different TTS service
-      // or pre-recorded audio files
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const frameCount = 24000; // 1 second of audio at 24kHz
-      const buffer = audioContext.createBuffer(1, frameCount, 24000);
-      
-      // Fill with silence
-      const channelData = buffer.getChannelData(0);
-      for (let i = 0; i < frameCount; i++) {
-        channelData[i] = 0;
-      }
-      
-      // Use the browser's TTS to actually speak the text
+      // Create a new speech synthesis utterance
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'zh-CN'; // Chinese
-      utterance.rate = 0.8; // Slower speed for clarity
+      utterance.rate = 0.8; // Slightly slower for clarity
+      utterance.pitch = 1.0;
       
+      // For Web Speech API, we play directly rather than returning AudioBuffer
+      // Since we can't easily get AudioBuffer from Web Speech API, we'll modify the approach
       utterance.onstart = () => {
-        console.log("Speech started");
-      };
-      
-      utterance.onend = () => {
-        audioContext.close();
+        // Return a dummy AudioBuffer to maintain interface compatibility
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const buffer = audioContext.createBuffer(1, 1, 22050); // Empty buffer
         resolve(buffer);
       };
       
-      utterance.onerror = (error) => {
-        console.error("Speech synthesis error:", error);
-        audioContext.close();
-        resolve(buffer); // Still return the silent buffer
+      utterance.onerror = () => {
+        resolve(null);
       };
       
+      // Speak the text
       window.speechSynthesis.speak(utterance);
+      
     });
-    
   } catch (error) {
-    console.error("Error with speech synthesis:", error);
+    console.error("Error with text-to-speech:", error);
     return null;
   }
 };
 
-// Robust Audio Player Helper
+// Alternative TTS using recorded audio files (if available)
+export const fetchSpeechFromFiles = async (text: string): Promise<AudioBuffer | null> => {
+  try {
+    // This would require pre-recorded audio files for common words/phrases
+    // For now, this is a placeholder implementation
+    console.log("Local TTS would speak:", text);
+    
+    // Simulate loading time
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    return null;
+  } catch (error) {
+    console.error("Error with local TTS:", error);
+    return null;
+  }
+};
+
+// Simple audio player using Web Audio API
 let sharedAudioContext: AudioContext | null = null;
 
 export const playAudioBuffer = async (buffer: AudioBuffer) => {
@@ -133,4 +108,30 @@ export const playAudioBuffer = async (buffer: AudioBuffer) => {
   source.buffer = buffer;
   source.connect(sharedAudioContext.destination);
   source.start();
+};
+
+// Direct speech playback using Web Speech API (recommended alternative)
+export const speakText = (text: string, lang: string = 'zh-CN'): void => {
+  if (!('speechSynthesis' in window)) {
+    console.warn("Speech synthesis not supported");
+    return;
+  }
+  
+  // Cancel any ongoing speech
+  window.speechSynthesis.cancel();
+  
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = lang;
+  utterance.rate = 0.8;
+  utterance.pitch = 1.0;
+  
+  window.speechSynthesis.speak(utterance);
+};
+
+// Utility to get available voices
+export const getAvailableVoices = (): SpeechSynthesisVoice[] => {
+  if (!('speechSynthesis' in window)) {
+    return [];
+  }
+  return window.speechSynthesis.getVoices();
 };
